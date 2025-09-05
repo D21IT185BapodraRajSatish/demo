@@ -1,15 +1,33 @@
 #
 # Build stage
 #
-FROM maven:3.8.3-openjdk-17 AS build
-COPY . .
-RUN mvn clean install
+FROM maven:3.9.6-eclipse-temurin-24 as build
+
+WORKDIR /app
+
+# Copy only files needed to download dependencies first
+COPY pom.xml mvnw ./
+COPY .mvn .mvn
+
+# Download dependencies (cacheable layer)
+RUN ./mvnw dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN ./mvnw clean package -DskipTests
 
 #
-# Package stage
+# Runtime stage
 #
-FROM eclipse-temurin:17-jdk
-COPY --from=build /target/your-build.jar demo.jar
-# ENV PORT=8080
+FROM eclipse-temurin:24-jre-alpine
+
+WORKDIR /app
+
+# Copy jar file from build stage (replace `demo` with your actual jar name)
+COPY --from=build /app/target/*.jar app.jar
+
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","demo.jar"]
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
