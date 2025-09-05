@@ -1,26 +1,15 @@
-# Build stage: Use Maven with OpenJDK 24
-FROM maven:3.9.6-eclipse-temurin-24 AS build
+#
+# Build stage
+#
+FROM maven:3.8.3-openjdk-17 AS build
+COPY . .
+RUN mvn clean install
 
-WORKDIR /app
-
-# Copy pom, Maven wrapper files & download dependencies
-COPY pom.xml .
-COPY mvnw .
-COPY .mvn .mvn
-RUN ./mvnw dependency:go-offline -B
-
-# Copy source code and build the app (skip tests for faster build)
-COPY src ./src
-RUN ./mvnw clean package -DskipTests
-
-# Run stage: Use OpenJDK 24 JRE image
-FROM eclipse-temurin:24-jre-alpine
-
-WORKDIR /app
-
-# Copy the built jar from build stage
-COPY --from=build /app/target/*.jar app.jar
-
+#
+# Package stage
+#
+FROM eclipse-temurin:17-jdk
+COPY --from=build /target/your-build.jar demo.jar
+# ENV PORT=8080
 EXPOSE 8080
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","demo.jar"]
