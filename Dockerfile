@@ -1,27 +1,26 @@
-# Use official Maven image to build the app
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Build stage: Use Maven with OpenJDK 24
+FROM maven:3.9.6-eclipse-temurin-24 AS build
 
 WORKDIR /app
 
-# Copy pom.xml and download dependencies (for caching)
+# Copy pom, Maven wrapper files & download dependencies
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+COPY mvnw .
+COPY .mvn .mvn
+RUN ./mvnw dependency:go-offline -B
 
-# Copy the rest of the code and build the app
+# Copy source code and build the app (skip tests for faster build)
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN ./mvnw clean package -DskipTests
 
-# Use a smaller runtime image for the final container
-FROM eclipse-temurin:17-jdk-alpine
+# Run stage: Use OpenJDK 24 JRE image
+FROM eclipse-temurin:24-jre-alpine
 
-# Set working directory in container
 WORKDIR /app
 
-# Copy built JAR from previous stage
+# Copy the built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose port (match your Spring Boot server.port)
 EXPOSE 8080
 
-# Run the jar file
 ENTRYPOINT ["java", "-jar", "app.jar"]
